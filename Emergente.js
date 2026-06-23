@@ -27,7 +27,7 @@ async function broadcastColor(color) {
 async function move() {
     while (true) {
         let direccion = Math.floor(Math.random() * 360);
-        roll(direccion, 60); 
+        await roll(direccion, 60); 
         await delay(1.0); 
         await delay(0.2);
     }
