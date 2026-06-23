@@ -24,6 +24,15 @@ async function broadcastColor(color) {
     }
 }
 
+async function move() {
+    while (true) {
+        let direccion = Math.floor(Math.random() * 360);
+        roll(direccion, 60); 
+        await delay(1.0); 
+        await delay(0.2);
+    }
+}
+
 async function onIRMessage(channel) {
   if (channel === 0) {
     rojos++;
@@ -39,6 +48,7 @@ registerEvent(EventType.onIRMessage, onIRMessage);
 async function startProgram() {
     var color = Math.floor(Math.random() * 2);
     setColor(color);
+    move();
 
     //listenForIRMessage(channels);
     listenForIRMessage(channels[0], channels[1]);
@@ -46,8 +56,10 @@ async function startProgram() {
     while (true) {
         await broadcastColor(color);
 
+        // Esperamos 1.5 segundos recolectando los votos de los vecinos
         await delay(1.5);
 
+        // Votación de consenso
         if (rojos > azules) {
             color = 0;
         } else if (azules > rojos) {
@@ -55,8 +67,11 @@ async function startProgram() {
         }
         
         setColor(color);
+        
+        // Limpieza de datos para la siguiente ronda
         rojos = 0;
         azules = 0;
+        
         await delay(0.5);
     }
 }
