@@ -18,8 +18,9 @@ function setColor(color) {
 }
 
 async function broadcastColor(color) {
-    stopIRBroadcast();
-    startIRBroadcast(4, color);
+    // El color va en ambos canales del par para que sea legible
+    // tanto de cerca (<1 m) como de lejos (1-3 m).
+    startIRBroadcast(color, color);
 }
 
 async function move() {
@@ -45,35 +46,37 @@ registerEvent(EventType.onIRMessage, onIRMessage);
 
 async function startProgram() {
     var color = Math.floor(Math.random() * 2);
-    var new_color;
 
     setColor(color);
-    await broadcastColor(color);
 
     listenForIRMessage(ROJO, AZUL);
 
     move();
 
     while (true) {
-        rojos = 0;
-        azules = 0;
+        // Cuenta tu propio color: da inercia y evita que un robot
+        // aislado (0 vecinos) parpadee al azar.
+        rojos = color === ROJO ? 1 : 0;
+        azules = color === AZUL ? 1 : 0;
 
-        
+        await broadcastColor(color);
 
         await delay(TIEMPO_VOTACION);
 
         if (rojos > azules) {
-            new_color = ROJO;
+            color = ROJO;
         } else if (azules > rojos) {
-            new_color = AZUL;
+            color = AZUL;
+        } else {
+            // Empate real con vecinos: rompe la simetria al azar.
+            // Sin esto, las divisiones pares nunca se resuelven.
+            color = Math.floor(Math.random() * 2);
         }
 
-        if(new_color !== color) {
-            color = new_color;
-            setColor(color);
-            await broadcastColor(color);
-        }
+        setColor(color);
 
-        await delay(TIEMPO_RONDA);
+        // Jitter: desincroniza las rondas para que los robots no
+        // voten en fase y no caigan en oscilaciones tipo flip-flop.
+        await delay(TIEMPO_RONDA + Math.random() * 0.2);
     }
 }
