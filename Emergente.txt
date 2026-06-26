@@ -35,8 +35,11 @@ async function move() {
 
 async function onIRMessage(channel) {
     if (channel === ROJO) {
+        await speak("red", false);
         rojos++;
-    } else if (channel === AZUL) {
+    }
+    else {
+        await speak("blue", false);
         azules++;
     }
 
