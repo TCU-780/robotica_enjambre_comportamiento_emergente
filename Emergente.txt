@@ -18,7 +18,7 @@ function setColor(color) {
 }
 
 async function broadcastColor(color) {
-    stopIRBroadcast();
+    // Color en el canal lejano; el 4 es el canal cercano (sin uso aqui).
     startIRBroadcast(4, color);
 }
 
@@ -39,41 +39,43 @@ async function onIRMessage(channel) {
     } else if (channel === AZUL) {
         azules++;
     }
+
+    // RE-ARMAR: sin esto, el listener solo dispara una vez y nunca vuelve.
+    listenForIRMessage(ROJO, AZUL);
 }
 
 registerEvent(EventType.onIRMessage, onIRMessage);
 
 async function startProgram() {
     var color = Math.floor(Math.random() * 2);
-    var new_color;
 
     setColor(color);
-    await broadcastColor(color);
 
     listenForIRMessage(ROJO, AZUL);
 
     move();
 
     while (true) {
-        rojos = 0;
-        azules = 0;
+        // Auto-voto: inercia y evita parpadeo si esta aislado.
+        rojos = color === ROJO ? 1 : 0;
+        azules = color === AZUL ? 1 : 0;
 
-        
+        await broadcastColor(color);
 
         await delay(TIEMPO_VOTACION);
 
         if (rojos > azules) {
-            new_color = ROJO;
+            color = ROJO;
         } else if (azules > rojos) {
-            new_color = AZUL;
+            color = AZUL;
+        } else {
+            // Empate real con vecinos: rompe la simetria al azar.
+            color = Math.floor(Math.random() * 2);
         }
 
-        if(new_color !== color) {
-            color = new_color;
-            setColor(color);
-            await broadcastColor(color);
-        }
+        setColor(color);
 
-        await delay(TIEMPO_RONDA);
+        // Jitter: desincroniza rondas, evita el flip-flop sincrono.
+        await delay(TIEMPO_RONDA + Math.random() * 0.2);
     }
 }
