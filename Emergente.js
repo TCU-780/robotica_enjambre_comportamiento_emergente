@@ -18,6 +18,7 @@ function setColor(color) {
 }
 
 async function broadcastColor(color) {
+    stopIRBroadcast();
     startIRBroadcast(4, color);
 }
 
@@ -44,8 +45,10 @@ registerEvent(EventType.onIRMessage, onIRMessage);
 
 async function startProgram() {
     var color = Math.floor(Math.random() * 2);
+    var new_color;
 
     setColor(color);
+    await broadcastColor(color);
 
     listenForIRMessage(ROJO, AZUL);
 
@@ -55,17 +58,21 @@ async function startProgram() {
         rojos = 0;
         azules = 0;
 
-        await broadcastColor(color);
+        
 
         await delay(TIEMPO_VOTACION);
 
         if (rojos > azules) {
-            color = ROJO;
+            new_color = ROJO;
         } else if (azules > rojos) {
-            color = AZUL;
+            new_color = AZUL;
         }
 
-        setColor(color);
+        if(new_color !== color) {
+            color = new_color;
+            setColor(color);
+            await broadcastColor(color);
+        }
 
         await delay(TIEMPO_RONDA);
     }
