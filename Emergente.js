@@ -1,82 +1,57 @@
 var rojos = 0;
 var azules = 0;
-
 const ROJO = 0;
 const AZUL = 1;
-
 const VELOCIDAD = 35;
 const TIEMPO_MOVIMIENTO = 0.35;
-const TIEMPO_VOTACION = 0.7;
+const TIEMPO_VOTACION = 1.5;
 const TIEMPO_RONDA = 0.2;
+const INTENSIDAD = 64;        // 1..64; mayor = más alcance
+var color = 0;                // global: lo necesita el loop de emisión
 
-function setColor(color) {
-    if (color === ROJO) {
-        setMainLed({ r: 255, g: 0, b: 0 });
-    } else {
-        setMainLed({ r: 0, g: 0, b: 255 });
-    }
+function setColor(c) {
+    if (c === ROJO) setMainLed({ r: 255, g: 0, b: 0 });
+    else            setMainLed({ r: 0, g: 0, b: 255 });
 }
 
-async function broadcastColor(color) {
-    // El color va en ambos canales del par para que sea legible
-    // tanto de cerca (<1 m) como de lejos (1-3 m).
-    startIRBroadcast(color, color);
+// CLAVE: sendIRMessage (no startIRBroadcast) es lo que dispara onIRMessage.
+// El color viaja como el número de canal del mensaje.
+async function broadcastLoop() {
+    while (true) {
+        sendIRMessage(color, INTENSIDAD);
+        await delay(0.25);
+    }
 }
 
 async function move() {
     while (true) {
-        let direccion = Math.floor(Math.random() * 360);
-
-        await roll(direccion, VELOCIDAD, TIEMPO_MOVIMIENTO);
+        let dir = Math.floor(Math.random() * 360);
+        await roll(dir, VELOCIDAD, TIEMPO_MOVIMIENTO);
         await stopRoll();
-
         await delay(0.15);
     }
 }
 
 async function onIRMessage(channel) {
-    if (channel === ROJO) {
-        rojos++;
-    } else if (channel === AZUL) {
-        azules++;
-    }
+    if (channel === ROJO) rojos++;
+    else if (channel === AZUL) azules++;
 }
-
 registerEvent(EventType.onIRMessage, onIRMessage);
 
 async function startProgram() {
-    var color = Math.floor(Math.random() * 2);
-
+    color = Math.floor(Math.random() * 2);
     setColor(color);
-
     listenForIRMessage(ROJO, AZUL);
-
     move();
-
+    broadcastLoop();
     while (true) {
-        // Cuenta tu propio color: da inercia y evita que un robot
-        // aislado (0 vecinos) parpadee al azar.
-        rojos = color === ROJO ? 1 : 0;
-        azules = color === AZUL ? 1 : 0;
-
-        await broadcastColor(color);
-
+        rojos  = (color === ROJO ? 1 : 0);   // auto-voto
+        azules = (color === AZUL ? 1 : 0);
         await delay(TIEMPO_VOTACION);
-
-        if (rojos > azules) {
-            color = ROJO;
-        } else if (azules > rojos) {
-            color = AZUL;
-        } else {
-            // Empate real con vecinos: rompe la simetria al azar.
-            // Sin esto, las divisiones pares nunca se resuelven.
-            color = Math.floor(Math.random() * 2);
-        }
-
+        if (rojos > azules) color = ROJO;
+        else if (azules > rojos) color = AZUL;
+        else color = Math.floor(Math.random() * 2);
         setColor(color);
-
-        // Jitter: desincroniza las rondas para que los robots no
-        // voten en fase y no caigan en oscilaciones tipo flip-flop.
         await delay(TIEMPO_RONDA + Math.random() * 0.2);
     }
 }
