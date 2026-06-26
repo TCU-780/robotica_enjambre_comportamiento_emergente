@@ -1,84 +1,61 @@
-var rojos = 0;
-var azules = 0;
+// 0 = rojo, 1 = azul
+var myColor = Math.random() < 0.5 ? 0 : 1;
 
-const ROJO = 0;
-const AZUL = 1;
+var redVotes = 0;
+var blueVotes = 0;
 
-const VELOCIDAD = 35;
-const TIEMPO_MOVIMIENTO = 0.35;
-const TIEMPO_VOTACION = 0.7;
-const TIEMPO_RONDA = 0.2;
+// Canal 1 = mensaje rojo
+// Canal 2 = mensaje azul
+var channels = [1, 2];
 
-function setColor(color) {
-    if (color === ROJO) {
-        setMainLed({ r: 255, g: 0, b: 0 });
-    } else {
-        setMainLed({ r: 0, g: 0, b: 255 });
-    }
+function updateLed() {
+  if (myColor === 0) {
+    setMainLed({ r: 255, g: 0, b: 0 });
+  } else {
+    setMainLed({ r: 0, g: 0, b: 255 });
+  }
 }
 
-async function broadcastColor(color) {
-    // Color en el canal lejano; el 4 es el canal cercano (sin uso aqui).
-    startIRBroadcast(4, color);
-}
-
-async function move() {
-    while (true) {
-        let direccion = Math.floor(Math.random() * 360);
-
-        await roll(direccion, VELOCIDAD, TIEMPO_MOVIMIENTO);
-        await stopRoll();
-
-        await delay(0.15);
-    }
+async function broadcastColor() {
+  if (myColor === 0) {
+    sendIRMessage(1, 1);
+  } else {
+    sendIRMessage(2, 1);
+  }
 }
 
 async function onIRMessage(channel) {
-    if (channel === ROJO) {
-        await speak("red", false);
-        rojos++;
-    }
-    else {
-        await speak("blue", false);
-        azules++;
-    }
+  if (channel === 1) {
+    redVotes++;
+  }
 
-    // RE-ARMAR: sin esto, el listener solo dispara una vez y nunca vuelve.
-    listenForIRMessage(ROJO, AZUL);
+  if (channel === 2) {
+    blueVotes++;
+  }
+
+  listenForIRMessage(channels);
 }
 
 registerEvent(EventType.onIRMessage, onIRMessage);
 
 async function startProgram() {
-    var color = Math.floor(Math.random() * 2);
+  updateLed();
+  listenForIRMessage(channels);
 
-    setColor(color);
+  while (true) {
+    await broadcastColor();
 
-    listenForIRMessage(ROJO, AZUL);
-
-    move();
-
-    while (true) {
-        // Auto-voto: inercia y evita parpadeo si esta aislado.
-        rojos = color === ROJO ? 1 : 0;
-        azules = color === AZUL ? 1 : 0;
-
-        await broadcastColor(color);
-
-        await delay(TIEMPO_VOTACION);
-
-        if (rojos > azules) {
-            color = ROJO;
-        } else if (azules > rojos) {
-            color = AZUL;
-        } else {
-            // Empate real con vecinos: rompe la simetria al azar.
-            color = Math.floor(Math.random() * 2);
-        }
-
-        setColor(color);
-
-        // Jitter: desincroniza rondas, evita el flip-flop sincrono.
-        await delay(TIEMPO_RONDA + Math.random() * 0.2);
+    if (redVotes > blueVotes) {
+      myColor = 0;
+    } else if (blueVotes > redVotes) {
+      myColor = 1;
     }
+
+    updateLed();
+
+    redVotes = 0;
+    blueVotes = 0;
+
+    await delay(2);
+  }
 }
