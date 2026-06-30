@@ -24,6 +24,17 @@ async function broadcastColor() {
   }
 }
 
+function move() {
+    while (true) {
+        let direccion = Math.floor(Math.random() * 360);
+
+        await roll(direccion, 35, 0.35);
+        await stopRoll();
+
+        await delay(0.15);
+    }
+}
+
 async function onIRMessage(channel) {
   if (channel === 1) {
     redVotes++;
@@ -41,6 +52,7 @@ registerEvent(EventType.onIRMessage, onIRMessage);
 async function startProgram() {
   updateLed();
   listenForIRMessage(channels);
+  move();
 
   while (true) {
     await broadcastColor();
